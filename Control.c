@@ -7,6 +7,7 @@
 #include "UART.h"
 #include "Nokia5110.h"
 #include "ADC.h"
+#include "PWM.h"
 
 #define GPIO_PORTA_DATA_R       (*((volatile unsigned long *)0x400043FC))
 #define GPIO_PORTA_DIR_R        (*((volatile unsigned long *)0x40004400))
@@ -57,24 +58,6 @@ volatile float P = 0, I = 0, D = 0;
 volatile float uk = 0;
 volatile unsigned long setpoint = 5000;
 volatile long cycle;
-
-void PWM_Init(void){
-  SYSCTL_RCGC2_R |= 0x00000001; // activate clock for port A
-  H = L = SAMPLE_FRQ/2;             // 50%
-  GPIO_PORTA_AMSEL_R &= ~0xA0;      // disable analog functionality on PA5 PA7
-  GPIO_PORTA_PCTL_R &= ~0xF0F00000; // configure PA5 PA7 as GPIO
-  GPIO_PORTA_DIR_R |= 0xA0;     // make PA5 PA7 out
-  GPIO_PORTA_DR8R_R |= 0xA0;    // enable 8 mA drive on PA5 PA7
-  GPIO_PORTA_AFSEL_R &= ~0xA0;  // disable alt funct on PA5 PA7
-  GPIO_PORTA_DEN_R |= 0xA0;     // enable digital I/O on PA5 PA7
-  GPIO_PORTA_DATA_R &= ~0x20;   // make PA5 low
-	GPIO_PORTA_DATA_R |= 0x80;    // make PA7 high
-  NVIC_ST_CTRL_R = 0;           // disable SysTick during setup
-  NVIC_ST_RELOAD_R = L-1;       // reload value for 500us
-  NVIC_ST_CURRENT_R = 0;        // any write to current clears it
-  NVIC_SYS_PRI3_R = (NVIC_SYS_PRI3_R&0x00FFFFFF)|0x40000000; // priority 2
-  NVIC_ST_CTRL_R = 0x00000007;  // enable with core clock and interrupts
-}
 
 void Switch_Init(void){  
 	unsigned long volatile delay;
@@ -175,14 +158,14 @@ int main(void){
 	volatile float sensor_volt;
 	unsigned long integer;
 	
-  DisableInterrupts();  	// disable interrupts while initializing
-  PLL_Init();			// bus clock at 80 MHz
-	UART_Init();		// initialize UART
-  Nokia5110_Init();	// initialize Nokia 5110
-	PWM_Init();			// output from PA5, SysTick interrupts
-  Switch_Init();	// arm PF4, PF0 for falling edge interrupts
-	ADC0_Init();		// ADC initialization PE2/AIN1
-  EnableInterrupts();   	// enable after all initialization are done
+  DisableInterrupts();	// disable interrupts while initializing
+  PLL_Init();						// bus clock at 50 MHz
+	UART_Init();					// initialize UART
+  Nokia5110_Init();			// initialize Nokia 5110
+	PWM_Init();						// output from PE4
+  Switch_Init();				// arm PF4, PF0 for falling edge interrupts
+	ADC0_Init();					// ADC initialization PE2/AIN1
+  EnableInterrupts();		// enable after all initialization are done
   
 	Nokia5110_DrawFullImage(UTFPR);
 	

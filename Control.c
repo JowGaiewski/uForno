@@ -47,8 +47,6 @@ void DisableInterrupts(void); // Disable interrupts
 void EnableInterrupts(void);  // Enable interrupts
 void WaitForInterrupt(void);  // low power mode
 
-extern volatile unsigned long ADCvalue;
-
 volatile unsigned long H,L;
 volatile unsigned long ticker;
 volatile float ek = 0;				// error

@@ -22,7 +22,7 @@
 
 volatile unsigned long ADCvalue = 0;
 
-void ADC0_Init(void){ 
+void ADC0_Init(void){	
   volatile unsigned long delay;
   SYSCTL_RCGC2_R |= 0x00000010;   // 1) activate clock for Port E
   delay = SYSCTL_RCGC2_R;         //    allow time for clock to stabilize

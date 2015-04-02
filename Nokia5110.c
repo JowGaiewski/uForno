@@ -199,31 +199,20 @@ void Nokia5110_OutString(char *ptr){
 // assumes: LCD is in default horizontal addressing mode (V = 0)
 void Nokia5110_OutUDec(unsigned short n){
   if(n < 10){
-    Nokia5110_OutString("    ");
+    Nokia5110_OutString("   ");
     Nokia5110_OutChar(n+'0'); /* n is between 0 and 9 */
   } else if(n<100){
-    Nokia5110_OutString("   ");
+    Nokia5110_OutString("  ");
     Nokia5110_OutChar(n/10+'0'); /* tens digit */
     Nokia5110_OutChar(n%10+'0'); /* ones digit */
   } else if(n<1000){
-    Nokia5110_OutString("  ");
-    Nokia5110_OutChar(n/100+'0'); /* hundreds digit */
-    n = n%100;
-    Nokia5110_OutChar(n/10+'0'); /* tens digit */
-    Nokia5110_OutChar(n%10+'0'); /* ones digit */
-  }
-  else if(n<10000){
-    Nokia5110_OutChar(' ');
-    Nokia5110_OutChar(n/1000+'0'); /* thousands digit */
-    n = n%1000;
+    Nokia5110_OutString(" ");
     Nokia5110_OutChar(n/100+'0'); /* hundreds digit */
     n = n%100;
     Nokia5110_OutChar(n/10+'0'); /* tens digit */
     Nokia5110_OutChar(n%10+'0'); /* ones digit */
   }
   else {
-    Nokia5110_OutChar(n/10000+'0'); /* ten-thousands digit */
-    n = n%10000;
     Nokia5110_OutChar(n/1000+'0'); /* thousands digit */
     n = n%1000;
     Nokia5110_OutChar(n/100+'0'); /* hundreds digit */

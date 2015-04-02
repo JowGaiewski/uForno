@@ -16,6 +16,8 @@
 #define PWM2_LOAD_R				      (*((volatile unsigned long *)0x400280D0))
 #define PWM2_CMPA_R				      (*((volatile unsigned long *)0x400280D8))
 
+volatile unsigned short Duty = 50;
+
 void PWM_Init(void){
 	volatile unsigned long delay;
 	SYSCTL_RCGC0_R |= 0x00100000;   // 1) activate PWM0
@@ -30,11 +32,11 @@ void PWM_Init(void){
 	PWM2_CTL_R = 0x00000000;				// 8) disable PWM generator 2
 	PWM2_GENA_R = 0x0000008C;
 	PWM2_LOAD_R = PERIOD;
-	PWM2_CMPA_R = PERIOD*50/100;
+	PWM2_CMPA_R = PERIOD*Duty/100;
 	PWM2_CTL_R |= 0x00000001;	  		// 9) enable PWM generator 2
 	PWM0_ENABLE_R |= 0x00000010;		// enable M0PWM4
 }
 
-void PWM_Duty(unsigned short duty){
-	PWM2_CMPA_R = (PERIOD*(100 - duty))/100;
+void PWM_UpdateDuty(void){
+	PWM2_CMPA_R = (PERIOD*(100 - Duty))/100;
 }

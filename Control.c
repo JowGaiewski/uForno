@@ -56,7 +56,7 @@ float Ik1 = 0;	 				     	// last integral sum
 volatile float Uk1 = 0;	      // last integral sum
 volatile float P = 0, I = 0, D = 0;
 volatile float uk = 0;
-volatile unsigned long setpoint = 5000;
+volatile unsigned long setpoint = 800;
 volatile long cycle;
 
 void Switch_Init(void){  
@@ -84,10 +84,12 @@ void GPIOF_Handler(void){ // called on touch of either SW1 or SW2
   if(GPIO_PORTF_RIS_R&0x01){  // SW2 touch
     GPIO_PORTF_ICR_R = 0x01;  // acknowledge flag0
     setpoint += 100;    // heat up
+		if (setpoint > 1100) setpoint = 1100;
   }
   if(GPIO_PORTF_RIS_R&0x10){  // SW1 touch
     GPIO_PORTF_ICR_R = 0x10;  // acknowledge flag4
     setpoint -= 100;  //cool down
+		if (setpoint < 600) setpoint = 600;
   }
 }
 
@@ -151,6 +153,15 @@ long ControlPID (long temp, long setpoint){
 	return cycle;
 }
 
+//  function delays 3*ulCount cycles
+void Delay_ms(unsigned ulCount){
+	unsigned long count = 16666;
+	count *= ulCount;
+	do{
+		count--;
+	}while(count);
+}
+
 void SystemInit(){
 }
 
@@ -170,11 +181,32 @@ int main(void){
   EnableInterrupts();		// enable after all initialization are done
   
 	Nokia5110_DrawFullImage(UTFPR);
+	Delay_ms(1000);
+	Nokia5110_Clear();
+	Nokia5110_OutString("   uForno   ");
+	Nokia5110_OutString("------------");
+	Nokia5110_OutString("SetPt:      ");
+	Nokia5110_OutString("Temp:       ");
+	Nokia5110_OutString("Duty:       ");
 	
-	PWM_Duty(0);
+	Duty = 90;
+	PWM_UpdateDuty();
 	
 	while(1){
 		if(ticker >= 100){	//100ms
+			
+			Nokia5110_SetCursor(6, 2);
+			Nokia5110_OutUDec(setpoint);
+			Nokia5110_OutChar(127);
+			Nokia5110_OutChar('C');
+			Nokia5110_SetCursor(6, 3);
+			Nokia5110_OutUDec(ADCvalue);
+			Nokia5110_OutChar(127);
+			Nokia5110_OutChar('C');
+			Nokia5110_SetCursor(6, 4);
+			Nokia5110_OutUDec(Duty);
+			Nokia5110_OutChar(' ');
+			Nokia5110_OutChar('%');
 			
 			/*
 			ADC0_Get();

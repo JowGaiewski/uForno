@@ -1,8 +1,10 @@
 // PWM.h
 // Software functions to configure the PWM.
 
-#define PERIOD 500		//(PLL/PWMDIV)/(FREQ_PWM)
+#define PERIOD 1249		//(PLL/PWMDIV)/(FREQ_PWM)-1
 
 extern volatile unsigned long Duty;
 
 void PWM_Init(void);
+
+void PWM_Duty(unsigned short);

@@ -169,6 +169,8 @@ int main(void){
   
 	Nokia5110_DrawFullImage(UTFPR);
 	
+	PWM_Duty(70);
+	
 	while(1){
 		if(ticker >= 100){	//100ms
 			ADC0_Get();

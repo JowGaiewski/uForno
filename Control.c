@@ -80,17 +80,6 @@ void Switch_Init(void){
   NVIC_EN0_R = 0x40000000;      //  enable interrupt 30 in NVIC
 }
 
-void SysTick_Handler(void){
-  if(GPIO_PORTA_DATA_R&0x20){   // toggle PA5
-    GPIO_PORTA_DATA_R &= ~0x20; // make PA5 low
-    NVIC_ST_RELOAD_R = L-1;     // reload value for low phase
-  } else{
-    GPIO_PORTA_DATA_R |= 0x20;  // make PA5 high
-    NVIC_ST_RELOAD_R = H-1;     // reload value for high phase
-  }
-	ticker += 1;
-}
-
 void GPIOF_Handler(void){ // called on touch of either SW1 or SW2
   if(GPIO_PORTF_RIS_R&0x01){  // SW2 touch
     GPIO_PORTF_ICR_R = 0x01;  // acknowledge flag0
@@ -100,6 +89,18 @@ void GPIOF_Handler(void){ // called on touch of either SW1 or SW2
     GPIO_PORTF_ICR_R = 0x10;  // acknowledge flag4
     setpoint -= 100;  //cool down
   }
+}
+
+void SysTick_Init(void){
+	NVIC_ST_CTRL_R = 0;           // disable SysTick during setup
+  NVIC_ST_RELOAD_R = 50000-1;   // reload value for 500us
+  NVIC_ST_CURRENT_R = 0;        // any write to current clears it
+  NVIC_SYS_PRI3_R = (NVIC_SYS_PRI3_R&0x00FFFFFF)|0x40000000; // priority 2
+  NVIC_ST_CTRL_R = 0x00000007;  // enable with core clock and interrupts
+}
+
+void SysTick_Handler(void){
+	ticker += 1;
 }
 
 void Duty_Cycle (float cycle){
@@ -163,16 +164,19 @@ int main(void){
 	UART_Init();					// initialize UART
   Nokia5110_Init();			// initialize Nokia 5110
 	PWM_Init();						// output from PE4
+	SysTick_Init();				// initialize periodic interrupt (SysTick)
   Switch_Init();				// arm PF4, PF0 for falling edge interrupts
 	ADC0_Init();					// ADC initialization PE2/AIN1
   EnableInterrupts();		// enable after all initialization are done
   
 	Nokia5110_DrawFullImage(UTFPR);
 	
-	PWM_Duty(70);
+	PWM_Duty(0);
 	
 	while(1){
 		if(ticker >= 100){	//100ms
+			
+			/*
 			ADC0_Get();
 			sensor_volt = ADCvalue*33000;
 			sensor_volt /= 4095;
@@ -199,6 +203,11 @@ int main(void){
 			//UART_OutChar('\t');
 			//UART_OutUDec();
 			OutCRLF();
+			*/
+			
+			ADC0_Get();
+			UART_OutUDec(ADCvalue); OutCRLF();
+			
 			ticker = 0;
 		}
     WaitForInterrupt(); // low power mode

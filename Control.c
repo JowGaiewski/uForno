@@ -52,11 +52,12 @@ volatile unsigned long H,L;
 volatile unsigned long ticker;
 volatile float ek = 0;				// error
 volatile float ek1 = 0;				// last error
-float Ik1 = 0;	 				     	// last integral sum
+volatile float Ik1 = 0;	 				     	// last integral sum
 volatile float Uk1 = 0;	      // last integral sum
 volatile float P = 0, I = 0, D = 0;
 volatile float uk = 0;
 volatile unsigned long setpoint = 800;
+volatile float temperature;
 volatile long cycle;
 
 void Switch_Init(void){  
@@ -85,11 +86,15 @@ void GPIOF_Handler(void){ // called on touch of either SW1 or SW2
     GPIO_PORTF_ICR_R = 0x01;  // acknowledge flag0
     setpoint += 100;    // heat up
 		if (setpoint > 1100) setpoint = 1100;
+		Duty += 10;
+		if (Duty > 100) Duty = 100;
   }
   if(GPIO_PORTF_RIS_R&0x10){  // SW1 touch
     GPIO_PORTF_ICR_R = 0x10;  // acknowledge flag4
     setpoint -= 100;  //cool down
 		if (setpoint < 600) setpoint = 600;
+		Duty -= 10;
+		if (Duty < 1) Duty = 1;
   }
 }
 
@@ -162,6 +167,17 @@ void Delay_ms(unsigned ulCount){
 	}while(count);
 }
 
+float getTemp(){		// 150 Ohms -> 0.6 V ~ 3V (745 ~ 3723)
+	ADC0_Get();
+	if (ADCvalue < 740){
+		temperature = -10;
+		}
+	else {
+		temperature = ADCvalue * 0.403 - 300.052;
+		}
+	return temperature;
+}
+
 void SystemInit(){
 }
 
@@ -189,18 +205,36 @@ int main(void){
 	Nokia5110_OutString("Temp:       ");
 	Nokia5110_OutString("Duty:       ");
 	
-	Duty = 90;
-	PWM_UpdateDuty();
-	
 	while(1){
 		if(ticker >= 100){	//100ms
+			
+			PWM_UpdateDuty();
+			
+			temperature = getTemp();
+			
+			UART_OutUDec(setpoint);
+			UART_OutChar('\t');
+			if (temperature < -5){
+				UART_OutString("Erro");
+			}
+			else {
+				UART_OutUDec(temperature);
+			}
+			UART_OutChar('\t');
+			UART_OutUDec(Duty);
+			OutCRLF();
 			
 			Nokia5110_SetCursor(6, 2);
 			Nokia5110_OutUDec(setpoint);
 			Nokia5110_OutChar(127);
 			Nokia5110_OutChar('C');
 			Nokia5110_SetCursor(6, 3);
-			Nokia5110_OutUDec(ADCvalue);
+			if (temperature < -5){
+				Nokia5110_OutString("Erro");
+			}
+			else {
+				Nokia5110_OutUDec(temperature);
+			}
 			Nokia5110_OutChar(127);
 			Nokia5110_OutChar('C');
 			Nokia5110_SetCursor(6, 4);
@@ -236,9 +270,6 @@ int main(void){
 			//UART_OutUDec();
 			OutCRLF();
 			*/
-			
-			ADC0_Get();
-			UART_OutUDec(ADCvalue); OutCRLF();
 			
 			ticker = 0;
 		}

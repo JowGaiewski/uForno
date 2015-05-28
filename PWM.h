@@ -3,7 +3,7 @@
 
 #define PERIOD 1249		//(PLL/PWMDIV)/(FREQ_PWM)-1
 
-extern volatile unsigned short Duty;
+extern volatile short Duty;
 
 void PWM_Init(void);
 

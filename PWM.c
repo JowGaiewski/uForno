@@ -16,7 +16,7 @@
 #define PWM2_LOAD_R				      (*((volatile unsigned long *)0x400280D0))
 #define PWM2_CMPA_R				      (*((volatile unsigned long *)0x400280D8))
 
-volatile unsigned short Duty = 50;
+volatile short Duty = 50;
 
 void PWM_Init(void){
 	volatile unsigned long delay;

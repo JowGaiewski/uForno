@@ -28,7 +28,7 @@ void PWM_Init(void){
 	GPIO_PORTE_AMSEL_R &= ~0x10;     // 4) disable analog function on PE4
 	GPIO_PORTE_DEN_R |= 0x10;      // 5) enable digital I/O on PE4
 	SYSCTL_RCC_R |= 0x00100000;			// 7) enable PWM clock divisor
-	SYSCTL_RCC_R = (SYSCTL_RCC_R&0xFFF1FFFF)+0x00020000;		// 8) divide by 4
+	SYSCTL_RCC_R = (SYSCTL_RCC_R&0xFFF1FFFF)+0x000E0000;		// 8) divide by 4
 	PWM2_CTL_R = 0x00000000;				// 8) disable PWM generator 2
 	PWM2_GENA_R = 0x0000008C;
 	PWM2_LOAD_R = PERIOD;

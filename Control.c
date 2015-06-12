@@ -40,25 +40,23 @@
 #define NVIC_PRI7_R             (*((volatile unsigned long *)0xE000E41C))
 #define NVIC_SYS_PRI3_R         (*((volatile unsigned long *)0xE000ED20))
 
-#define SAMPLE_FRQ 50000			// PLL/SAMPLE_FREQ = 1KHz
-#define SAMPLE_T_MS 1
+#define SAMPLE_T_MS 100
 	
 // funções definidas no startup_TMC123.s
 void DisableInterrupts(void); // Disable interrupts
 void EnableInterrupts(void);  // Enable interrupts
 void WaitForInterrupt(void);  // low power mode
 
-volatile unsigned long H,L;
 volatile unsigned long ticker;
+
+volatile float Kp, Ki, Kd;		// coeficients
 volatile float ek = 0;				// error
 volatile float ek1 = 0;				// last error
-volatile float Ik1 = 0;	 				     	// last integral sum
-volatile float Uk1 = 0;	      // last integral sum
-volatile float P = 0, I = 0, D = 0;
-volatile float uk = 0;
-volatile unsigned long setpoint = 800;
+volatile float Ik1 = 0;	 			// last integral sum
+volatile float uk = 0;				// control effort
+
+volatile unsigned long setpoint = 900;
 volatile float temperature;
-volatile long cycle;
 
 void Switch_Init(void){  
 	unsigned long volatile delay;
@@ -86,15 +84,11 @@ void GPIOF_Handler(void){ // called on touch of either SW1 or SW2
     GPIO_PORTF_ICR_R = 0x01;  // acknowledge flag0
     setpoint += 100;    // heat up
 		if (setpoint > 1100) setpoint = 1100;
-		Duty += 10;
-		if (Duty > 100) Duty = 100;
   }
   if(GPIO_PORTF_RIS_R&0x10){  // SW1 touch
     GPIO_PORTF_ICR_R = 0x10;  // acknowledge flag4
     setpoint -= 100;  //cool down
-		if (setpoint < 600) setpoint = 600;
-		Duty -= 10;
-		if (Duty < 1) Duty = 1;
+		if (setpoint < 100) setpoint = 100;
   }
 }
 
@@ -109,53 +103,49 @@ void SysTick_Init(void){
 void SysTick_Handler(void){
 	ticker += 1;
 }
-
-void Duty_Cycle (float cycle){
-	cycle = 1000 - cycle;  
-	if (cycle <= 1){
-		cycle = 1;
-	}
-	if (cycle >= 999) {
-		cycle = 999;
-	}
-	L = cycle*SAMPLE_FRQ/1000;
-	H = SAMPLE_FRQ - L;
-}
 	
 long ControlPID (long temp, long setpoint){
-	volatile float Kp, Ki, Kd;
+	
 	volatile float T = SAMPLE_T_MS*1e-3;
-	Kp = 3;
-	Ki = 0.1;
-	Kd = 1;
+	volatile float P = 0, I = 0, D = 0;
 	
-	ek = setpoint - temp;
+	// Coeficients Values
+	Kp = 1;
+	Ki = 0;
+	Kd = 0;
 	
+	ek = setpoint - temp;		// erro
+	
+	// Proportional term
 	P = Kp*ek;
 	
-	if (Uk1 >= 999 || Uk1 <= 0){
-		I = Ik1;
-	}else{
-		I = ((Ki*T*(ek + ek1)/2) + Ik1);
+	// Integral term
+	if (Ik1 >= 99){		//anti wind-up
+		I = 99;
+	}
+	else if (Ik1 <= 0){
+		I = 0;
+	}
+	else{
+		I = (Ki*T*(ek + ek1)/2) + Ik1;
 	}
 	
-	D = (Kd*(ek - ek1)*100)/SAMPLE_T_MS;
+	// Derivative term
+	D = (Kd*(ek - ek1))/T;
 	
-	ek1 = ek;
-	uk = P+I+D;
-	
-	Ik1 = I;
-	Uk1 = uk;
+	uk = P+I+D;		// Control Effort
 	
 	if (uk <= 1 ){
 		uk = 1;
 	}
-	if (uk >= 999){
-		uk = 999;
+	if (uk >= 99){
+		uk = 99;
 	}
-	cycle = uk;
 	
-	return cycle;
+	ek1 = ek;			// Last Error
+	Ik1 = I;			// Last Integral Term
+	
+	return uk;
 }
 
 //  function delays 3*ulCount cycles
@@ -183,9 +173,6 @@ void SystemInit(){
 
 int main(void){
 	
-	volatile float sensor_volt;
-	unsigned long integer;
-	
   DisableInterrupts();	// disable interrupts while initializing
   PLL_Init();						// bus clock at 50 MHz
 	UART_Init();					// initialize UART
@@ -196,6 +183,8 @@ int main(void){
 	ADC0_Init();					// ADC initialization PE2/AIN1
   EnableInterrupts();		// enable after all initialization are done
   
+	PWM_UpdateDuty();
+	
 	Nokia5110_DrawFullImage(UTFPR);
 	Delay_ms(1000);
 	Nokia5110_Clear();
@@ -206,15 +195,16 @@ int main(void){
 	Nokia5110_OutString("Duty:       ");
 	
 	while(1){
-		if(ticker >= 100){	//100ms
-			
-			PWM_UpdateDuty();
+		if(ticker >= 500){	//500ms
 			
 			temperature = getTemp();
+			ControlPID(temperature,setpoint);
+			Duty = uk;
+			PWM_UpdateDuty();
 			
 			UART_OutUDec(setpoint);
 			UART_OutChar('\t');
-			if (temperature < -5){
+			if (temperature < -1){
 				UART_OutString("Erro");
 			}
 			else {
@@ -229,7 +219,7 @@ int main(void){
 			Nokia5110_OutChar(127);
 			Nokia5110_OutChar('C');
 			Nokia5110_SetCursor(6, 3);
-			if (temperature < -5){
+			if (temperature < -1){
 				Nokia5110_OutString("Erro");
 			}
 			else {
@@ -241,35 +231,6 @@ int main(void){
 			Nokia5110_OutUDec(Duty);
 			Nokia5110_OutChar(' ');
 			Nokia5110_OutChar('%');
-			
-			/*
-			ADC0_Get();
-			sensor_volt = ADCvalue*33000;
-			sensor_volt /= 4095;
-			cycle = ControlPID(sensor_volt,setpoint);
-			Duty_Cycle(cycle);
-			
-			integer = (int)sensor_volt;
-			UART_OutUDec(sensor_volt/100);
-			UART_OutChar('.');
-			sensor_volt = (sensor_volt-integer)*100;
-			integer = (int)sensor_volt;
-			if (integer < 10){
-				UART_OutChar('0');
-			}
-			UART_OutUDec(sensor_volt);
-			UART_OutChar('\t');
-			UART_OutUDec(cycle/10);
-			UART_OutChar('.');
-			UART_OutUDec(cycle - ((cycle/10)*10));
-			UART_OutChar('\t');
-			UART_OutUDec(setpoint/100);
-			//UART_OutChar('\t');
-			//UART_OutUDec(I);
-			//UART_OutChar('\t');
-			//UART_OutUDec();
-			OutCRLF();
-			*/
 			
 			ticker = 0;
 		}

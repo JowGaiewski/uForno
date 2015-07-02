@@ -40,7 +40,7 @@
 #define NVIC_PRI7_R             (*((volatile unsigned long *)0xE000E41C))
 #define NVIC_SYS_PRI3_R         (*((volatile unsigned long *)0xE000ED20))
 
-#define SAMPLE_T_MS 100
+#define SAMPLE_T_MS 500
 	
 // funções definidas no startup_TMC123.s
 void DisableInterrupts(void); // Disable interrupts
@@ -50,6 +50,7 @@ void WaitForInterrupt(void);  // low power mode
 volatile unsigned long ticker;
 
 volatile float Kp, Ki, Kd;		// coeficients
+volatile float P = 0, I = 0, D = 0;
 volatile float ek = 0;				// error
 volatile float ek1 = 0;				// last error
 volatile float Ik1 = 0;	 			// last integral sum
@@ -107,12 +108,11 @@ void SysTick_Handler(void){
 long ControlPID (long temp, long setpoint){
 	
 	volatile float T = SAMPLE_T_MS*1e-3;
-	volatile float P = 0, I = 0, D = 0;
 	
 	// Coeficients Values
-	Kp = 1;
-	Ki = 0;
-	Kd = 0;
+	Kp = 0.25;
+	Ki = 0.0025;
+	Kd = 0.25;
 	
 	ek = setpoint - temp;		// erro
 	
@@ -120,14 +120,17 @@ long ControlPID (long temp, long setpoint){
 	P = Kp*ek;
 	
 	// Integral term
-	if (Ik1 >= 99){		//anti wind-up
-		I = 99;
-	}
-	else if (Ik1 <= 0){
-		I = 0;
-	}
-	else{
+	if(ek < 200){
 		I = (Ki*T*(ek + ek1)/2) + Ik1;
+		if (I >= 99){		//anti wind-up
+			I = 99;
+		}
+		else if (I <= 0){
+			I = 0;
+		}
+	}
+	else {
+		I = 0;
 	}
 	
 	// Derivative term
@@ -212,6 +215,12 @@ int main(void){
 			}
 			UART_OutChar('\t');
 			UART_OutUDec(Duty);
+			UART_OutChar('\t');
+			UART_OutUDec(P);
+			UART_OutChar('\t');
+			UART_OutUDec(I);
+			UART_OutChar('\t');
+			UART_OutUDec(D);
 			OutCRLF();
 			
 			Nokia5110_SetCursor(6, 2);
